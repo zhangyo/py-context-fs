@@ -18,6 +18,13 @@ Treats all data sources (databases, APIs, memory) as files.
 - **`ContextNode`**: Abstract adapter for data sources. Implement this to connect to SQL, Vector DBs, or APIs.
 - **`ContextFile`**: Represents data with `content`, `metadata`, and optional `token_count`. Supports multiple "views" (e.g., `default`, `summary`) for compression.
 
+#### Standard Operations
+The VFS enforces a strict interface for all data sources, mimicking POSIX-like behavior:
+- **`list(path)`**: Discovering available resources (e.g., listing all assessments for a student).
+- **`read(path)`**: Retrieving the content of a resource (e.g., reading the transcript of a specific quiz).
+- **`write(path, content)`**: Updating the state (e.g., modifying the student's mastery profile).
+- **`search(query)`**: A specialized operation mapped to vector database lookups.
+
 ### 2. The Pipeline
 Manages the flow of data to the LLM.
 - **`ContextConstructor`**: Selects relevant files to load (via search, rules, or explicit paths).
@@ -62,6 +69,36 @@ manifest = constructor.construct(paths=["/work/notes.txt"])
 # Automatically chooses views to fit max_tokens
 loader = ContextLoader(fs, model="gpt-4")
 context_string = loader.load(manifest, max_tokens=500)
+```
+
+## Database Integration (Virtualizing Databases)
+
+The VFS can treat databases as file systems by mapping paths to queries:
+
+- **Path**: `/users/123` → `SELECT * FROM users WHERE id = 123`
+- **View**: `view="summary"` → `SELECT summary FROM ...`
+
+### Example Implementation
+
+```python
+class DatabaseResolver(ContextNode):
+    def __init__(self, db_connection):
+        self.db = db_connection
+
+    def read(self, path: str, view: str = "default") -> ContextFile:
+        # 1. Translate path to DB identifier
+        record_id = path
+        
+        # 2. Query the database
+        record = self.db.execute("SELECT * FROM rules WHERE name = ?", (record_id,))
+        
+        # 3. Handle Views
+        content = record['summary'] if view == "summary" else record['full_text']
+
+        return ContextFile(content=content, metadata={"source": "postgres"})
+
+    def list(self, path: str) -> List[str]:
+        return [row['name'] for row in self.db.execute("SELECT name FROM rules")]
 ```
 
 ## Running the Demo
