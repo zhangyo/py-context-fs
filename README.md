@@ -4,11 +4,21 @@ A Python implementation of the **Agentic File System (AFS)** pattern and **Conte
 
 This library decouples **Data Access** (Virtual File System) from **Context Management** (Pipeline), allowing agents to dynamically select, compress, and load context into LLM token windows.
 
+
 ## Installation
 
+You can install `py-context-fs` directly from the source:
+
 ```bash
-pip install -r requirements.txt
+# Install via pip
+pip install git+https://github.com/yourusername/py-context-fs.git
+
+# Or clone and install locally (for development)
+git clone https://github.com/yourusername/py-context-fs.git
+cd py-context-fs
+pip install -e .
 ```
+
 
 ## Core Concepts
 
