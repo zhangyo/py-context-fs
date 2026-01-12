@@ -126,3 +126,26 @@ python3 examples/pipeline_demo.py
 - `py_context_fs/core.py`: Abstract interfaces and the Router.
 - `py_context_fs/pipeline.py`: The Constructor, Loader, and Evaluator.
 - `py_context_fs/resolvers.py`: Reference implementations (DictResolver).
+- `py_context_fs/repository.py`: Persistent history/memory/scratchpad repository.
+
+## Persistent Context Repository
+
+The repository provides durable history, memory, and scratchpad layers with simple lifecycle transitions.
+
+```python
+from py_context_fs.repository import PersistentContextRepository
+
+repo = PersistentContextRepository("./context_repo")
+
+# History append (immutable log)
+history_path = repo.append_history("Raw interaction text", metadata={"actor": "user"})
+
+# Scratchpad write
+scratch_path = repo.persist_scratchpad("Draft reasoning")
+
+# Promote scratchpad -> history
+repo.commit_scratchpad_to_history(scratch_path, metadata={"reviewed": True})
+
+# Promote history -> memory (optionally transform)
+repo.promote_history_to_memory(history_path, memory_key="session_001")
+```

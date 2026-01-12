@@ -1,16 +1,25 @@
 import sys
 import os
+import shutil
 
 # Ensure the package is in python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from py_context_fs.core import ContextRouter
+from py_context_fs.repository import PersistentContextRepository
 from py_context_fs.resolvers import DictResolver
 from py_context_fs.pipeline import ContextConstructor, ContextLoader, ContextEvaluator
 
 def main():
     print("Initializing Agentic File System...")
     fs = ContextRouter()
+
+    # 0. Setup persistent repository (history/memory/scratchpad)
+    repo_root = os.path.join(os.path.dirname(__file__), "context_repo")
+    repo = PersistentContextRepository(repo_root)
+    history_path = repo.append_history("Student asked about AFS patterns.", metadata={"actor": "user"})
+    repo.promote_history_to_memory(history_path, memory_key="session_001")
+    fs.mount("/context", repo)
     
     # 1. Setup Resolver with Mock Data
     student_resolver = DictResolver()
@@ -38,7 +47,13 @@ def main():
     # Let's say we want everything in /student
     # In a real scenario, we might use search or specific selection logic
     # Here let's manually pick detailed files
-    manifest = constructor.construct(paths=["/student/transcript.txt", "/student/syllabus.txt"])
+    manifest = constructor.construct(
+        paths=[
+            "/student/transcript.txt",
+            "/student/syllabus.txt",
+            "/context/memory/session_001.json",
+        ]
+    )
     print(f"Manifest created with files: {manifest.files}")
 
     # 3. Pipeline Stage B: Loader (with strict token limit)
@@ -83,6 +98,9 @@ def main():
         print(f"Read back saved file: {saved_file.content}")
     else:
         print("Response validation failed.")
+
+    # Cleanup repository created for demo runs
+    shutil.rmtree(repo_root, ignore_errors=True)
 
 if __name__ == "__main__":
     main()
