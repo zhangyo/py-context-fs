@@ -24,8 +24,8 @@ pip install -e .
 
 ### 1. The Virtual File System (VFS)
 Treats all data sources (databases, APIs, memory) as files.
-- **`ContextFS`**: The router that mounts nodes at paths (e.g., `/student`, `/db`).
-- **`ContextNode`**: Abstract adapter for data sources. Implement this to connect to SQL, Vector DBs, or APIs.
+- **`ContextRouter`**: The router that mounts sources at paths (e.g., `/student`, `/db`).
+- **`ContextSource`**: Abstract adapter for data sources. Implement this to connect to SQL, Vector DBs, or APIs.
 - **`ContextFile`**: Represents data with `content`, `metadata`, and optional `token_count`. Supports multiple "views" (e.g., `default`, `summary`) for compression.
 
 #### Standard Operations
@@ -46,11 +46,11 @@ Manages the flow of data to the LLM.
 ### Basic File System Operations
 
 ```python
-from py_context_fs.core import ContextFS
+from py_context_fs.core import ContextRouter
 from py_context_fs.resolvers import DictResolver
 
 # 1. Initialize FS
-fs = ContextFS()
+fs = ContextRouter()
 
 # 2. Mount a data source (Resolver)
 # In a real app, this might be a SQLResolver or APIResolver
@@ -91,7 +91,9 @@ The VFS can treat databases as file systems by mapping paths to queries:
 ### Example Implementation
 
 ```python
-class DatabaseResolver(ContextNode):
+from py_context_fs.core import ContextSource, ContextFile
+
+class DatabaseResolver(ContextSource):
     def __init__(self, db_connection):
         self.db = db_connection
 

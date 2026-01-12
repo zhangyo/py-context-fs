@@ -4,13 +4,13 @@ import os
 # Ensure the package is in python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from py_context_fs.core import ContextFS
+from py_context_fs.core import ContextRouter
 from py_context_fs.resolvers import DictResolver
 from py_context_fs.pipeline import ContextConstructor, ContextLoader, ContextEvaluator
 
 def main():
     print("Initializing Agentic File System...")
-    fs = ContextFS()
+    fs = ContextRouter()
     
     # 1. Setup Resolver with Mock Data
     student_resolver = DictResolver()

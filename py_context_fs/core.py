@@ -10,8 +10,8 @@ class ContextFile:
     metadata: Dict[str, Any]
     token_count: Optional[int] = None
 
-class ContextNode(abc.ABC):
-    """Abstract base class for nodes in the Context File System."""
+class ContextSource(abc.ABC):
+    """Abstract base class for sources in the Context File System."""
 
     @abc.abstractmethod
     def read(self, path: str, view: str = "default") -> ContextFile:
@@ -64,22 +64,22 @@ class ContextNode(abc.ABC):
         """
         pass
 
-class ContextFS:
+class ContextRouter:
     """The Router for the Agentic File System.
 
-    Mounts ContextNodes at specific prefixes and routes operations to them.
+    Mounts ContextSources at specific prefixes and routes operations to them.
     """
 
     def __init__(self):
-        self._mounts: Dict[str, ContextNode] = {}
+        self._mounts: Dict[str, ContextSource] = {}
 
-    def mount(self, path_prefix: str, node: ContextNode) -> None:
-        """Mounts a ContextNode at a specific path prefix.
+    def mount(self, path_prefix: str, node: ContextSource) -> None:
+        """Mounts a ContextSource at a specific path prefix.
 
         Args:
             path_prefix: The prefix to mount at (e.g., '/student').
                          Must start with '/'.
-            node: The ContextNode to mount.
+            node: The ContextSource to mount.
         """
         if not path_prefix.startswith("/"):
             raise ValueError("Path prefix must start with '/'")
@@ -89,14 +89,14 @@ class ContextFS:
         
         self._mounts[path_prefix] = node
 
-    def _resolve(self, path: str) -> tuple[ContextNode, str]:
+    def _resolve(self, path: str) -> tuple[ContextSource, str]:
         """Resolves a full path to a (node, relative_path) tuple.
 
         Args:
             path: The full path (e.g., '/student/transcript.txt').
 
         Returns:
-            Tuple of (ContextNode, relative_path).
+            Tuple of (ContextSource, relative_path).
 
         Raises:
             FileNotFoundError: If no mount point matches the path.
@@ -156,7 +156,7 @@ class ContextFS:
     def exists(self, path: str) -> bool:
         """Checks if a file exists."""
         try:
-            self.open(path) # Try reading default view. Optimization: Add exists to ContextNode
+            self.open(path) # Try reading default view. Optimization: Add exists to ContextSource
             return True
         except (FileNotFoundError, ValueError):
             return False

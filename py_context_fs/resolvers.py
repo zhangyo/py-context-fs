@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Optional
-from .core import ContextNode, ContextFile
+from .core import ContextSource, ContextFile
 
-class DictResolver(ContextNode):
-    """An in-memory implementation of ContextNode using a Python dictionary.
+class DictResolver(ContextSource):
+    """An in-memory implementation of ContextSource using a Python dictionary.
     
     Structure of data:
     {
@@ -76,10 +76,10 @@ class DictResolver(ContextNode):
         if metadata:
              self._metadata[path] = metadata
 
-class ReadOnlyWrapper(ContextNode):
+class ReadOnlyWrapper(ContextSource):
     """Wrapper that prevents write operations."""
 
-    def __init__(self, wrapped: ContextNode):
+    def __init__(self, wrapped: ContextSource):
         self._wrapped = wrapped
 
     def read(self, path: str, view: str = "default") -> ContextFile:

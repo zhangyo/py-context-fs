@@ -1,7 +1,7 @@
 import tiktoken
 from dataclasses import dataclass, field
 from typing import List, Optional, Any, Callable
-from .core import ContextFS, ContextFile
+from .core import ContextRouter, ContextFile
 
 @dataclass
 class ContextManifest:
@@ -11,7 +11,7 @@ class ContextManifest:
 class ContextConstructor:
     """Component A: Selection."""
 
-    def __init__(self, fs: ContextFS):
+    def __init__(self, fs: ContextRouter):
         self._fs = fs
 
     def construct(self, query: str = None, paths: List[str] = None) -> ContextManifest:
@@ -41,7 +41,7 @@ class ContextConstructor:
 class ContextLoader:
     """Component B: Token Budgeting & Streaming."""
 
-    def __init__(self, fs: ContextFS, model: str = "gpt-4"):
+    def __init__(self, fs: ContextRouter, model: str = "gpt-4"):
         self._fs = fs
         self._encoding = tiktoken.encoding_for_model(model)
 
@@ -97,7 +97,7 @@ class ContextLoader:
 class ContextEvaluator:
     """Component C: Validation & Persistence."""
 
-    def __init__(self, fs: ContextFS):
+    def __init__(self, fs: ContextRouter):
         self._fs = fs
 
     def evaluate(self, response: str, validator: Callable[[str], bool], output_path: str) -> bool:
