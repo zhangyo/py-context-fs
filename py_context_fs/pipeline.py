@@ -58,18 +58,25 @@ class ContextLoader:
         current_tokens = 0
         
         for path in manifest.files:
-            if not self._fs.exists(path):
-                continue
-            
-            # 1. Try default view
             try:
+                # 1. Try default view
                 file_obj = self._fs.open(path, view="default")
-            except ValueError:
-                # View might not exist, skip
-                 continue
-
-            content = file_obj.content
-            tokens = self.count_tokens(content) # Naive exact count
+                content = file_obj.content
+                tokens = self.count_tokens(content) # Naive exact count
+            except (ValueError, FileNotFoundError):
+                # Default view unavailable; try summary view instead
+                try:
+                    summary_file = self._fs.open(path, view="summary")
+                    summary_content = summary_file.content
+                    summary_tokens = self.count_tokens(summary_content)
+                    if current_tokens + summary_tokens <= max_tokens:
+                        final_context_parts.append(
+                            f"--- File: {path} (Summary) ---\n{summary_content}\n"
+                        )
+                        current_tokens += summary_tokens
+                    continue
+                except (ValueError, FileNotFoundError):
+                    continue
 
             if current_tokens + tokens <= max_tokens:
                 final_context_parts.append(f"--- File: {path} ---\n{content}\n")

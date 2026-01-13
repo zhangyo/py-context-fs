@@ -156,10 +156,15 @@ class ContextRouter:
     def exists(self, path: str) -> bool:
         """Checks if a file exists."""
         try:
-            self.open(path) # Try reading default view. Optimization: Add exists to ContextSource
+            # Try reading default view, then fall back to summary for summary-only sources.
+            self.open(path)
             return True
         except (FileNotFoundError, ValueError):
-            return False
+            try:
+                self.open(path, view="summary")
+                return True
+            except (FileNotFoundError, ValueError):
+                return False
 
     def write(self, path: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """Writes to a virtual file."""
