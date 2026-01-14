@@ -67,10 +67,17 @@ def main():
     max_tokens = 200
     print(f"Loading context with max_tokens={max_tokens}...")
     
-    context = loader.load(manifest, max_tokens=max_tokens)
+    context_chunks = []
+    for chunk in loader.load_stream(manifest, max_tokens=max_tokens):
+        context_chunks.append(chunk)
+        if "syllabus.txt" in chunk:
+            print("Early abort triggered after syllabus chunk.")
+            break
+    context = "\n".join(context_chunks)
     
     print("\n[Generated Context START]")
-    print(context)
+    for chunk in context_chunks:
+        print(chunk)
     print("[Generated Context END]")
 
     # Check expectations
@@ -91,7 +98,14 @@ def main():
     def json_validator(text):
         return text.startswith("{") and text.endswith("}")
 
-    saved = evaluator.evaluate(mock_llm_response, json_validator, "/student/grade.json")
+    saved = evaluator.evaluate(
+        mock_llm_response,
+        json_validator,
+        "/student/grade.json",
+        validator_name="json_shape_v1",
+        evidence_paths=["/context/memory/session_001.json"],
+        decision_metadata={"run_id": "demo-001"},
+    )
     if saved:
         print("Response validated and saved to /student/grade.json")
         saved_file = fs.open("/student/grade.json")

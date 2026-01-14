@@ -41,6 +41,94 @@ Manages the flow of data to the LLM.
 - **`ContextLoader`**: Fits files into a strict token budget (Knapsack algorithm). It uses `tiktoken` to count tokens and automatically falls back to smaller views (e.g., "summary") if the default content is too large.
 - **`ContextEvaluator`**: Validates agent outputs (e.g., JSON schema) and persists results back to the VFS.
 
+## Implementing a Context Engineering Pipeline
+
+This repository provides the building blocks to implement a full context engineering pipeline that separates data access (VFS) from context management (Pipeline). The pipeline is composed of three primary components that map to the Agentic File System pattern.
+
+### Context Constructor (Selection and Compression)
+The Constructor is responsible for assembling the necessary context for a specific reasoning task. In the iClass-style architecture, the Constructor uses the VFS to browse the student's history rather than dumping the entire database into the prompt. For example, it might traverse the `/history` directory and filter for assessments tagged with "Mathematics" within the last 30 days. It relies on VFS metadata (file size, modification date, tags) to rank and select the most relevant files. If a resolver exposes multiple views, the Constructor can prioritize compressed views as part of the selection strategy.
+
+In `py-context-fs`, this is modeled via `SelectionCriteria`, which supports metadata filters, regex include/exclude patterns, ranking, and optional pre-budgeting based on estimated token counts. This allows the Constructor to produce a prioritized `ContextManifest` that the Loader can refine under a strict budget.
+
+SelectionCriteria fields:
+- `query`: Search query against the VFS.
+- `paths`: Explicit paths to include.
+- `include_patterns`: Regex patterns to include (path-based).
+- `exclude_patterns`: Regex patterns to exclude (path-based).
+- `metadata_filter`: Predicate to filter using metadata.
+- `ranker`: Function to assign a priority score for ranking.
+- `max_results`: Limit number of selected files.
+- `max_tokens`: Optional pre-budget cap (approximate, summary-first).
+- `token_counter`: Optional function to estimate token cost (summary-first).
+- `preferred_view`: Preferred view (e.g., `summary`).
+- `view_selector`: Function to pick a view based on metadata.
+
+### Context Loader (Delivery and Streaming)
+The Loader manages the constraints of the Foundation Model, specifically the token window. It takes the `ContextManifest` produced by the Constructor and streams those files into the agent's context. The Loader counts tokens for each file and enforces the budget (for example, 128k tokens). When a selection exceeds the limit, it requests compressed views from the VFS (for example, reading `transcript.summary.md` instead of `transcript.detailed.md`). This ensures the agent always receives a coherent, bounded set of information without manual curation. Use `load_stream()` when you want incremental delivery or early aborts, and `load()` when you want a single string.
+
+### Context Evaluator (Validation and Persistence)
+The Evaluator closes the loop. After the agent generates a response or a new insight (for example, "Student struggles with equivalent fractions"), the Evaluator validates the output against ground truth (rubrics stored in `/system/rubrics/`). It is also responsible for write-back. Once validated, it writes the insight to the student's profile file (for example, `/students/123/profile.md`). A resolver can intercept that write and persist it to durable storage such as Postgres, ensuring the system learns and evolves over time.
+
+The Evaluator accepts optional audit metadata (validator name, evidence paths, timestamps) to support traceability and compliance.
+
+### Sample Test Code (Constructor, Loader, Evaluator)
+This self-contained snippet demonstrates the three components working together using the in-memory `DictResolver`.
+
+```python
+from py_context_fs.core import ContextRouter
+from py_context_fs.pipeline import (
+    ContextConstructor,
+    ContextLoader,
+    ContextEvaluator,
+    SelectionCriteria,
+)
+from py_context_fs.resolvers import DictResolver
+
+def is_valid_json(text: str) -> bool:
+    return text.strip().startswith("{") and text.strip().endswith("}")
+
+fs = ContextRouter()
+resolver = DictResolver()
+resolver.populate("history/assessment_001.json", {
+    "default": '{"topic": "Mathematics", "score": 78, "date": "2025-01-10"}',
+    "summary": '{"topic": "Mathematics", "score": 78}'
+})
+resolver.populate("history/assessment_002.json", {
+    "default": '{"topic": "Science", "score": 92, "date": "2025-01-05"}',
+    "summary": '{"topic": "Science", "score": 92}'
+})
+fs.mount("/student", resolver)
+
+# 1) Constructor: select relevant files (explicit paths or search-based)
+constructor = ContextConstructor(fs)
+manifest = constructor.construct(
+    criteria=SelectionCriteria(
+        paths=[
+            "/student/history/assessment_001.json",
+            "/student/history/assessment_002.json",
+        ],
+        preferred_view="summary",
+    )
+)
+
+# 2) Loader: enforce token budget and fall back to summary views
+loader = ContextLoader(fs, model="gpt-4")
+context = loader.load(manifest, max_tokens=40)
+print(context)
+
+# 3) Evaluator: validate and persist agent output
+evaluator = ContextEvaluator(fs)
+agent_output = '{"insight": "Student struggles with equivalent fractions."}'
+evaluator.evaluate(
+    response=agent_output,
+    validator=is_valid_json,
+    output_path="/student/profile.json",
+    validator_name="json_shape_v1",
+    evidence_paths=["/student/history/assessment_001.json"],
+)
+print(fs.open("/student/profile.json").content)
+```
+
 ## Usage
 
 ### Basic File System Operations
@@ -69,11 +157,21 @@ print(file.content)
 ### Full Pipeline Example
 
 ```python
-from py_context_fs.pipeline import ContextConstructor, ContextLoader
+from py_context_fs.pipeline import ContextConstructor, ContextLoader, SelectionCriteria
 
 # 1. Selection (Stage A)
 constructor = ContextConstructor(fs)
-manifest = constructor.construct(paths=["/work/notes.txt"])
+manifest = constructor.construct(
+    criteria=SelectionCriteria(
+        query="Mathematics",
+        include_patterns=[r"history/.*\\.json$"],
+        metadata_filter=lambda meta: meta.get("days_ago", 999) <= 30,
+        ranker=lambda path, meta: float(meta.get("priority", 0)),
+        max_results=25,
+        max_tokens=4000,
+        preferred_view="summary",
+    )
+)
 
 # 2. Loading with Token Budget (Stage B)
 # Automatically chooses views to fit max_tokens
