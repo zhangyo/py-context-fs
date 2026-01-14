@@ -103,7 +103,7 @@ def main():
         json_validator,
         "/student/grade.json",
         validator_name="json_shape_v1",
-        evidence_paths=["/context/memory/session_001.json"],
+        history_paths=[f"/context/{history_path}"],
         decision_metadata={"run_id": "demo-001"},
     )
     if saved:

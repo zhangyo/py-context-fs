@@ -314,7 +314,7 @@ class ContextEvaluator:
         validator: Callable[[str], bool],
         output_path: str,
         validator_name: Optional[str] = None,
-        evidence_paths: Optional[Sequence[str]] = None,
+        history_paths: Optional[Sequence[str]] = None,
         decision_metadata: Optional[Dict[str, Any]] = None,
         reviewed_at: Optional[float] = None,
     ) -> bool:
@@ -325,7 +325,7 @@ class ContextEvaluator:
             validator: A function that returns True if valid.
             output_path: Path to save the valid response to.
             validator_name: Optional identifier for the validator used.
-            evidence_paths: Optional list of evidence paths used for validation.
+            history_paths: Optional list of history paths used for validation.
             decision_metadata: Optional extra metadata for auditability.
             reviewed_at: Optional UNIX timestamp for validation time.
 
@@ -336,7 +336,7 @@ class ContextEvaluator:
              metadata = {
                  "valid": True,
                  "validator": validator_name,
-                 "evidence": list(evidence_paths) if evidence_paths else None,
+                 "history": list(history_paths) if history_paths else None,
                  "reviewed_at": reviewed_at if reviewed_at is not None else time.time(),
              }
              if decision_metadata:

@@ -69,7 +69,7 @@ The Loader manages the constraints of the Foundation Model, specifically the tok
 ### Context Evaluator (Validation and Persistence)
 The Evaluator closes the loop. After the agent generates a response or a new insight (for example, "Student struggles with equivalent fractions"), the Evaluator validates the output against ground truth (rubrics stored in `/system/rubrics/`). It is also responsible for write-back. Once validated, it writes the insight to the student's profile file (for example, `/students/123/profile.md`). A resolver can intercept that write and persist it to durable storage such as Postgres, ensuring the system learns and evolves over time.
 
-The Evaluator accepts optional audit metadata (validator name, evidence paths, timestamps) to support traceability and compliance.
+The Evaluator accepts optional audit metadata (validator name, history paths, timestamps) to support traceability and compliance.
 
 ### Sample Test Code (Constructor, Loader, Evaluator)
 This self-contained snippet demonstrates the three components working together using the in-memory `DictResolver`.
@@ -124,7 +124,7 @@ evaluator.evaluate(
     validator=is_valid_json,
     output_path="/student/profile.json",
     validator_name="json_shape_v1",
-    evidence_paths=["/student/history/assessment_001.json"],
+    history_paths=["/student/history/assessment_001.json"],
 )
 print(fs.open("/student/profile.json").content)
 ```
