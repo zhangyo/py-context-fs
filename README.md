@@ -11,10 +11,10 @@ You can install `py-context-fs` directly from the source:
 
 ```bash
 # Install via pip
-pip install git+https://github.com/yourusername/py-context-fs.git
+pip install git+https://github.com/zhangyo/py-context-fs.git
 
 # Or clone and install locally (for development)
-git clone https://github.com/yourusername/py-context-fs.git
+git clone https://github.com/zhangyo/py-context-fs.git
 cd py-context-fs
 pip install -e .
 ```
